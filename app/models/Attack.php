@@ -23,20 +23,35 @@ class Attack {
         return $this->precision;
     }
 
+    // Method to execute an attack and calculate damage dealt to the opponent, then call recevoirDegats() on the opponent to apply the damage
     public function executerAttaque(Pokemon $attaquant, Pokemon $adversaire, float $effectiveness = 1.0): array {
-        if ($this->attaqueTouches()) {
-            $defense = max(1, $adversaire->getDefense());
-            
-            $degats = (int) floor(($attaquant->getAttaque() * 0.1 * $this->puissance * $effectiveness) / $defense);
-            $degats = max(1, $degats);
+
+        // Check if the attack hits the opponent
+        if ($this->attackHits()) {
+            $defense = max(10, $adversaire->getDefense());
+            $attack = max(10, $attaquant->getAttaque());
+
+            // Calculate damage dealt to the opponent
+            $degats = floor(((5*$this->puissance*$attack/$defense)/50 + 2) * $effectiveness);
             $degats = (int)($degats * rand(85, 100) / 100);
+            $degats = max(2, $degats);
+            $isCritical = false;
+            // Add critical hit chance (6.25% chance)
+            if (rand(1, 16) === 1) {
+                $degats = floor($degats * 1.5);
+                $isCritical = true;
+            }
+
+            // Call recevoirDegats() on the opponent to apply the damage
             $adversaire->recevoirDegats($degats);
+
+            // Return an array with the attack used, damage dealt, hit status, and effectiveness
             return [
                 'attaqueUtilisee' => $this->nom,
                 'degats' => $degats,
                 'touche' => true,
                 'efficacite' => $effectiveness,
-                'message' => ''
+                'critique' => $isCritical
             ];
         } else {
             return [
@@ -44,12 +59,13 @@ class Attack {
                 'degats' => 0,
                 'touche' => false,
                 'efficacite' => $effectiveness,
-                'message' => 'L\'attaque a manqué!'
+                'critique' => false
             ];
         }
     }
 
-    private function attaqueTouches(): bool {
+    // Method to check if the attack hits the opponent based on the attack's precision
+    private function attackHits(): bool {
         $rand = rand(0, 100);
         return $rand <= $this->precision;
     }

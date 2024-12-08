@@ -9,6 +9,7 @@ class Combat {
         $this->pokemon2 = $pokemon2;
     }
 
+    // Start the combat with the specified Pokémon ID to heal
     public function demarrerCombat(?int $healPokemonId): array {
 
         $attaquant = $this->pokemon1;
@@ -41,11 +42,14 @@ class Combat {
             ]
         ]];
 
+        // While both Pokémon are still alive, continue the battle
         while ($this->pokemon1->getPointsDeVieRestants() > 0 && $this->pokemon2->getPointsDeVieRestants() > 0) {
+
+            // Keep track of the battle log for each turn
             $turnData = [
                 "tour" => $tour,
                 "action" => $this->tourDeCombat($attaquant, $defenseur),
-                "statut" => $this->getStatut()
+                "statut" => $this->getStatus()
             ];
 
             // Check for victory after the action
@@ -53,12 +57,15 @@ class Combat {
                 $turnData["fin"] = $this->getVainqueur();
             }
 
+            // Add the turn data to the battle log
             $battleLog[] = ["turn" => $turnData];
 
+            // If the battle is over, break out of the loop
             if (isset($turnData["fin"])) {
                 break;
             }
             
+            // Switch the attacker and defender for the next turn
             $temp = $attaquant;
             $attaquant = $defenseur;
             $defenseur = $temp;
@@ -69,15 +76,19 @@ class Combat {
         return $battleLog;
     }
 
+    // Simulate a turn of combat between two Pokémon
     private function tourDeCombat(Pokemon $attaquant, Pokemon $defenseur): array {
+
+        // Determine the attacker ID (1 or 2)
         $attaquantId = ($attaquant === $this->pokemon1) ? 1 : 2;
 
         if (rand(1, 100) <= 30) { // 30% chance to use special attack
             $attackResult = $attaquant->utiliserAttaqueSpeciale($defenseur);
-        } else {
+        } else { // 70% chance to use regular attack
             $attackResult = $attaquant->seBattre($defenseur);
         }
 
+        // Add the action data to the message
         $message = ["action" => [
             "id" => $attaquantId,
             "attaquant" => $attaquant->getNom(),
@@ -86,7 +97,7 @@ class Combat {
             "degats" => $attackResult['degats'],
             "touche" => $attackResult['touche'],
             "efficacite" => $attackResult['efficacite'],
-            "message" => $attackResult['message']
+            "critique" => $attackResult['critique']
         ]];
 
         // Prevent HP from going below 0
@@ -94,23 +105,25 @@ class Combat {
         return $message;
     }
 
-    private function getStatut(): array {
-        $statut =  ["statut" => [
+    // Get the current status of both Pokémon
+    private function getStatus(): array {
+        $status =  ["statut" => [
             "pokemon1" => [
                 "nom" => $this->pokemon1->getNom(),
                 "pv" => $this->pokemon1->getPointsDeVieRestants(),
-                "pvMax" => $this->pokemon1->getPointsDeVieMax() // New line
+                "pvMax" => $this->pokemon1->getPointsDeVieMax()
             ],
             "pokemon2" => [
                 "nom" => $this->pokemon2->getNom(),
                 "pv" => $this->pokemon2->getPointsDeVieRestants(),
-                "pvMax" => $this->pokemon2->getPointsDeVieMax() // New line
+                "pvMax" => $this->pokemon2->getPointsDeVieMax()
             ]
         ]];
         
-        return $statut;
+        return $status;
     }
 
+    // Get the winner of the battle
     private function getVainqueur(): array {
         $vainqueur = $this->pokemon1->getPointsDeVieRestants() > 0 ? $this->pokemon1 : $this->pokemon2;
         return ["fin" => [

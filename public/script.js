@@ -3,11 +3,13 @@
 const canvas = document.getElementById("battleCanvas");
 const ctx = canvas.getContext("2d");
 
+const audio = document.getElementById("audio");
+audio.volume = 0.2;
 // Start music on first click
 document.addEventListener(
 	"click",
 	function () {
-		document.getElementById("audio").play();
+		audio.play();
 		document.getElementById("audiotext").textContent = "";
 	},
 	{ once: true }
@@ -15,7 +17,6 @@ document.addEventListener(
 
 // Get battle log data
 let battleLog = battleLogData;
-console.log(battleLog);
 
 // Define variables for animation
 let turnIndex = 0;
@@ -145,7 +146,6 @@ function animateHealth() {
 let animationFrameId = null;
 
 function draw() {
-	console.log("Drawing frame");
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	// Get opacities for each Pokémon
 	const opacity1 = pokemonOpacities[`pokemon${initialStats.pokemon1.id}`];
@@ -322,28 +322,29 @@ async function updateBattleLog(turnData) {
 			<span class="text-white">${action?.action.attaquant}</span> used 
 			<span class="text-gray-400">${action?.action.attackUsed}</span>.
 			${
-				action?.action.touche
+				action && action.action && action.action.touche
 					? `<span class="text-gray-200">Deals ${Math.round(
-							action.action.degats
+							action.action.degats || 0
 					  )} damage!${
 							action.action.efficacite > 1
 								? " It's super effective!"
 								: action.action.efficacite < 1
 								? " It's not very effective..."
 								: ""
+					  }${
+							action.action.critique
+								? " <span class='text-yellow-500'>Critical hit!</span>"
+								: ""
 					  }</span>`
 					: `<span class="text-red-500">The attack missed!</span>`
 			}
 			${
-				action?.action.capaciteSpeciale
-					? `<div class="mt-2 text-yellow-400">${action.action.attaquant} used its special ability!</div>`
-					: ""
-			}
-			${
-				fin
+				fin && fin.fin
 					? `<div class="mt-2 text-green-400">${
-							fin.fin.vainqueur
-					  } wins with ${Math.round(fin.fin.pvRestants)} HP remaining!</div>`
+							fin.fin.vainqueur || "Pokemon"
+					  } wins with ${Math.round(
+							fin.fin.pvRestants || 0
+					  )} HP remaining!</div>`
 					: ""
 			}
 		`;
@@ -400,7 +401,11 @@ function updateActionText(action, fin) {
 				battleLogOverlay.appendChild(actionTextElement);
 			}
 			actionTextElement.textContent = actionText;
-
+			const critiqueTextElement = document.getElementById("critiqueText");
+			if (critiqueTextElement) {
+				critiqueTextElement.textContent = "";
+				critiqueTextElement.remove();
+			}
 			if (act.touche) {
 				// If there was a miss text from previous turn, remove it
 				const missTextElement = document.getElementById("missText");
@@ -408,6 +413,7 @@ function updateActionText(action, fin) {
 					missTextElement.textContent = "";
 					missTextElement.remove();
 				}
+				// If there was critical hit text from previous turn, remove it
 
 				let effectivenessText = "";
 				if (act.efficacite > 1) {
@@ -428,6 +434,17 @@ function updateActionText(action, fin) {
 					battleLogOverlay.appendChild(damageTextElement);
 				}
 				damageTextElement.textContent = damageText;
+				if (act.critique) {
+					let critiqueTextElement = document.getElementById("critiqueText");
+					if (!critiqueTextElement) {
+						critiqueTextElement = document.createElement("div");
+						critiqueTextElement.id = "critiqueText";
+						critiqueTextElement.className =
+							"text-md text-left text-yellow-500 mb-2";
+						battleLogOverlay.appendChild(critiqueTextElement);
+					}
+					critiqueTextElement.textContent = "Critical hit!";
+				}
 			} else {
 				// Hide damage text if attack missed
 				const damageTextElement = document.getElementById("damageText");
@@ -468,23 +485,29 @@ function updateActionText(action, fin) {
 					const winText = `${end.vainqueur} wins with ${Math.round(
 						end.pvRestants
 					)} HP remaining!`;
-					// Update win text in the UI
+
+					// Create centered win text container
 					let winTextElement = document.getElementById("winText");
 					if (!winTextElement) {
 						winTextElement = document.createElement("div");
 						winTextElement.id = "winText";
+						winTextElement.style.position = "absolute";
+						winTextElement.style.top = "30%";
+						winTextElement.style.left = "50%";
+						winTextElement.style.transform = "translate(-50%, -50%)";
+						winTextElement.style.zIndex = "1000";
 						winTextElement.className =
-							"text-lg text-left text-green-400 font-semibold mt-4";
-						battleLogOverlay.appendChild(winTextElement);
+							"text-3xl text-green-400 font-bold text-center bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg";
+						document.body.appendChild(winTextElement);
 					}
 					winTextElement.textContent = winText;
 
-					// Determine the fainted Pokémon ID
-					faintedPokemonId =
-						targetHealth1 <= 0
-							? `pokemon${initialStats.pokemon1.id}`
-							: `pokemon${initialStats.pokemon2.id}`;
-
+					// Set faintedPokemonId based on which Pokemon has 0 HP
+					if (targetHealth1 <= 0) {
+						faintedPokemonId = `pokemon${initialStats.pokemon1.id}`;
+					} else if (targetHealth2 <= 0) {
+						faintedPokemonId = `pokemon${initialStats.pokemon2.id}`;
+					}
 					// Create the 'Heal and Restart' button
 					createHealButton(faintedPokemonId);
 				}, 1000);
@@ -498,14 +521,19 @@ function updateActionText(action, fin) {
 		const winText = `${end.vainqueur} wins with ${Math.round(
 			end.pvRestants
 		)} HP remaining!`;
-		// Update win text in the UI
+
 		let winTextElement = document.getElementById("winText");
 		if (!winTextElement) {
 			winTextElement = document.createElement("div");
 			winTextElement.id = "winText";
+			winTextElement.style.position = "absolute";
+			winTextElement.style.top = "30%";
+			winTextElement.style.left = "50%";
+			winTextElement.style.transform = "translate(-50%, -50%)";
+			winTextElement.style.zIndex = "1000";
 			winTextElement.className =
-				"text-lg text-left text-green-400 font-semibold mt-1";
-			battleLogOverlay.appendChild(winTextElement);
+				"text-3xl text-green-400 font-bold text-center bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg";
+			document.body.appendChild(winTextElement);
 		}
 		winTextElement.textContent = winText;
 	}
@@ -639,6 +667,12 @@ function restartFight() {
 	if (animationFrameId) {
 		cancelAnimationFrame(animationFrameId);
 		animationFrameId = null;
+	}
+
+	// Add removal of win text
+	const winTextElement = document.getElementById("winText");
+	if (winTextElement) {
+		winTextElement.remove();
 	}
 
 	// Call the server-side function to heal and restart

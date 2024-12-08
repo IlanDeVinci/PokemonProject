@@ -1,5 +1,5 @@
 <div class="max-w-md mx-auto my-12 bg-white rounded-xl shadow-lg overflow-hidden">
-    <div class="p-8">
+    <div class="p-8 text-wrap   ">
         <h1 class="text-4xl font-bold mb-4 text-center text-gray-800"><?= htmlspecialchars($pokemon['name']) ?></h1>
         <h2 class="text-2xl text-gray-600 mb-6 text-center">Type: <?= $pokemon['type'] ?></h2>
         <div class="grid grid-cols-2 gap-6 mb-8 justify-items-center items-center">
@@ -34,7 +34,14 @@
         <ul class="space-y-4 mb-8">
             <?php foreach ($attacks as $attack): ?>
                 <li class="flex justify-between items-center bg-gray-50 p-4 rounded-lg shadow">
-                    <span class="text-gray-800"><?= htmlspecialchars($attack['name']) ?></span>
+                    <div class="flex flex-col">
+                        <span class="text-gray-800 font-medium"><?= htmlspecialchars($attack['name']) ?></span>
+                        <div class="text-sm text-gray-600">
+                            <span>Power: <?= htmlspecialchars($attack['power']) ?></span>
+                            <span class="mx-2">|</span>
+                            <span>Accuracy: <?= htmlspecialchars($attack['accuracy']) ?></span>
+                        </div>
+                    </div>
                     <form action="/pokemon/removeAttack/<?= $pokemon['id']?>" method="POST">
                         <input type="hidden" name="attack_id" value="<?= $attack['id'] ?>">
                         <button type="submit" class="text-red-600 hover:text-red-800 font-medium" onclick="return confirm('Are you sure you want to remove this attack?')">Remove</button>
@@ -48,9 +55,12 @@
             <?php endif; ?>
             <a href="/pokemon" class="text-blue-600 hover:underline font-medium">Back to Pokémon List</a>
         </div>
-        <form action="/pokemon/delete" method="POST">
-            <input type="hidden" name="id" value="<?= $pokemon['id'] ?>">
-            <button type="submit" class="w-full text-white bg-red-600 hover:bg-red-800 py-3 rounded-lg font-bold" onclick="return confirm('Are you sure you want to delete this Pokémon?')">Delete Pokémon</button>
-        </form>
+        <div class="space-y-4">
+            <a href="/pokemon/edit/<?= $pokemon['id'] ?>" class="block w-full text-center text-white bg-blue-600 hover:bg-blue-800 py-3 rounded-lg font-bold">Edit Pokémon</a>
+            <form action="/pokemon/delete" method="POST">
+                <input type="hidden" name="id" value="<?= $pokemon['id'] ?>">
+                <button type="submit" class="w-full text-white bg-red-600 hover:bg-red-800 py-3 rounded-lg font-bold" onclick="return confirm('Are you sure you want to delete this Pokémon?')">Delete Pokémon</button>
+            </form>
+        </div>
     </div>
 </div>

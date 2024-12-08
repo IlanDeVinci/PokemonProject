@@ -12,6 +12,8 @@
                     </div>
         <div class="flex justify-center">
             <a href="/attack" class="text-blue-600 hover:underline font-medium">Back to Attack List</a>
+            <a href="/attack/edit/<?= $attack['id'] ?>" class="ml-4 text-green-600 hover:underline font-medium">Edit Attack</a>
+            <a href="/attack/delete/<?= $attack['id'] ?>" class="ml-4 text-red-600 hover:underline font-medium" onclick="return confirm('Are you sure you want to delete this attack?');">Delete Attack</a>
         </div>
     </div>
 </div>
