@@ -11,7 +11,6 @@ class Autoload{
  
 public static function autoload($class): void 
 {
-  //echo $class;
     // List of directories to search
     $directories = [
         __DIR__ .'/../controllers/',

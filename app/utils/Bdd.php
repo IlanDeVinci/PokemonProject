@@ -8,6 +8,7 @@ abstract class Bdd{
     }
   }
  
+  // Connect to the database
   private function connect():void
   {
     $this->co = new PDO(

@@ -38,6 +38,7 @@ class Router {
         }
     }
 
+    // Display 404 error page
     private function error404() {
         header("HTTP/1.0 404 Not Found");
         echo '<!DOCTYPE html>
