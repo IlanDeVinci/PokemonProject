@@ -18,6 +18,23 @@
             <div class="bg-gray-50 rounded-lg shadow hover:shadow-lg transition-shadow p-6">
                 <a href="/pokemon/view/<?= $pokemon['id'] ?>" class="block">
                     <h2 class="text-xl font-semibold text-neutral-950 hover:text-blue-600"><?= htmlspecialchars($pokemon['name']) ?></h2>
+                    <img src="<?php
+                        $pokemonName = strtolower($pokemon['name']);
+                        $apiUrl = "https://pokeapi.co/api/v2/pokemon/{$pokemonName}";
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, $apiUrl);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        $response = curl_exec($ch);
+                        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
+                        
+                        if ($httpCode === 200) {
+                            $data = json_decode($response, true);
+                            echo $data['sprites']['front_default'];
+                        } else {
+                            echo "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/35.png";
+                        }
+                    ?>" alt="<?= htmlspecialchars($pokemon['name']) ?>" class="mx-auto my-4 w-32 h-32">
                     <p class="text-neutral-700 mt-2">Type: <?= htmlspecialchars($pokemon['type']) ?></p>
                     <div class="mt-4">
                         <div class="mb-2">

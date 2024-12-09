@@ -1,7 +1,26 @@
 <div class="max-w-md mx-auto my-12 bg-white rounded-xl shadow-lg overflow-hidden">
-    <div class="p-8 text-wrap   ">
+    <div class="p-8 text-wrap">
         <h1 class="text-4xl font-bold mb-4 text-center text-gray-800"><?= htmlspecialchars($pokemon['name']) ?></h1>
         <h2 class="text-2xl text-gray-600 mb-6 text-center">Type: <?= $pokemon['type'] ?></h2>
+        
+        <img src="<?php
+            $pokemonName = strtolower($pokemon['name']);
+            $apiUrl = "https://pokeapi.co/api/v2/pokemon/{$pokemonName}";
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $apiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($httpCode === 200) {
+                $data = json_decode($response, true);
+                echo $data['sprites']['front_default'];
+            } else {
+                echo "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/35.png";
+            }
+        ?>" alt="<?= htmlspecialchars($pokemon['name']) ?>" class="mx-auto my-4 w-32 h-32">
+
         <div class="grid grid-cols-2 gap-6 mb-8 justify-items-center items-center">
             <p class="text-gray-700"><span class="font-semibold">Health:</span> <?= $pokemon['health'] ?></p>
             <?php
