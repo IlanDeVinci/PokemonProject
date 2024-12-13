@@ -155,7 +155,7 @@ function animateAttack(pokemonId, missed) {
 
 		const jumpHeight = pokemonId.endsWith("1") ? 10 : 3;
 		let step = 0;
-		const steps = 15;
+		const steps = 10;
 		const flashCount = 2;
 		const flashSteps = 3; // Steps per flash
 		const flashGap = 4; // Steps between flashes
@@ -213,6 +213,108 @@ function animateAttack(pokemonId, missed) {
 		}, 20);
 	});
 }
+// Function to create particle animation
+function createParticleAnimation(attackerId, missed) {
+	return new Promise((resolve) => {
+		if (missed) {
+			console.log("Attack missed!");
+			resolve();
+			return;
+		}
+
+		// Type to color mapping
+		const typeColors = {
+			normal: "#A8A878",
+			feu: "#F08030",
+			eau: "#6890F0",
+			electrik: "#F8D030",
+			plante: "#78C850",
+			glace: "#98D8D8",
+			combat: "#C03028",
+			poison: "#A040A0",
+			sol: "#E0C068",
+			vol: "#A890F0",
+			psy: "#F85888",
+			insecte: "#A8B820",
+			roche: "#B8A038",
+			spectre: "#705898",
+			dragon: "#7038F8",
+			tenebre: "#705848",
+			acier: "#B8B8D0",
+			fee: "#EE99AC",
+		};
+
+		// Get attacker's type
+		const attackerNum = attackerId.endsWith("1") ? "1" : "2";
+		const attackerType =
+			initialStats[`pokemon${attackerNum}`].type.toLowerCase();
+		const particleColor = typeColors[attackerType] || "#F8D030"; // Default to yellow if type not found
+
+		const targetId = attackerId.endsWith("1")
+			? `pokemon${initialStats.pokemon2.id}`
+			: `pokemon${initialStats.pokemon1.id}`;
+
+		const particles = [];
+		const particleCount = 30;
+
+		const startX = pokemonPositions[attackerId].x + 100;
+		const startY = pokemonPositions[attackerId].y + 100;
+
+		for (let i = 0; i < particleCount; i++) {
+			particles.push({
+				x: startX,
+				y: startY,
+				speed: Math.random() * 8 + 4,
+				size: Math.random() * 6 + 4,
+				alpha: 1,
+			});
+		}
+
+		const targetX = pokemonPositions[targetId].x + 100;
+		const targetY = pokemonPositions[targetId].y + 100;
+
+		function animate() {
+			let allParticlesDone = true;
+			ctx.save();
+
+			particles.forEach((particle) => {
+				if (particle.alpha <= 0) return;
+
+				allParticlesDone = false;
+
+				const dx = targetX - particle.x;
+				const dy = targetY - particle.y;
+				const angle = Math.atan2(dy, dx);
+
+				particle.x += Math.cos(angle) * particle.speed;
+				particle.y += Math.sin(angle) * particle.speed;
+
+				const dist = Math.hypot(targetX - particle.x, targetY - particle.y);
+				if (dist < 50) {
+					particle.alpha -= 0.1;
+				}
+
+				// Draw particle with type color
+				ctx.beginPath();
+				ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+				ctx.fillStyle = `${particleColor}${Math.floor(particle.alpha * 255)
+					.toString(16)
+					.padStart(2, "0")}`;
+				ctx.fill();
+			});
+
+			ctx.restore();
+
+			if (allParticlesDone) {
+				resolve();
+			} else {
+				requestAnimationFrame(animate);
+			}
+		}
+
+		animate();
+	});
+}
 
 // Function to animate fainting Pokémon
 function animateFaint(pokemonId) {
@@ -244,7 +346,6 @@ function draw(tintPokemonId = null, tintColor = null) {
 	// Helper function to draw pokemon with tint
 	function drawPokemon(pokemonId, position, opacity) {
 		ctx.globalAlpha = opacity;
-		console.log(tintPokemonId, tintColor);
 		if (tintPokemonId === pokemonId && tintColor) {
 			// Create temporary canvas for tinting
 			const tempCanvas = document.createElement("canvas");
@@ -457,130 +558,135 @@ function updateActionText(action, fin) {
 		const act = action.action;
 		// Use the id to determine attacker
 		const attackerId = act.id; // Retrieve id from action
-		animateAttack(`pokemon${attackerId}`, !act.touche).then(() => {
-			// Use id to animate
-			const actionText = `${act.attaquant} uses ${act.attackUsed}!`;
-			// Update action text in the UI
-			let actionTextElement = document.getElementById("actionText");
-			if (!actionTextElement) {
-				actionTextElement = document.createElement("div");
-				actionTextElement.id = "actionText";
-				actionTextElement.className = "text-md text-left text-gray-300 mb-2";
-				battleLogOverlay.appendChild(actionTextElement);
-			}
-			actionTextElement.textContent = actionText;
-			const critiqueTextElement = document.getElementById("critiqueText");
-			if (critiqueTextElement) {
-				critiqueTextElement.textContent = "";
-				critiqueTextElement.remove();
-			}
-			if (act.touche) {
-				// If there was a miss text from previous turn, remove it
-				const missTextElement = document.getElementById("missText");
-				if (missTextElement) {
-					missTextElement.textContent = "";
-					missTextElement.remove();
+		createParticleAnimation(`pokemon${attackerId}`, !act.touche)
+			.then(() => {
+				return animateAttack(`pokemon${attackerId}`, !act.touche);
+			})
+			.then(() => {
+				// Use id to animate
+				const actionText = `${act.attaquant} uses ${act.attackUsed}!`;
+				// Update action text in the UI
+				let actionTextElement = document.getElementById("actionText");
+				if (!actionTextElement) {
+					actionTextElement = document.createElement("div");
+					actionTextElement.id = "actionText";
+					actionTextElement.className = "text-md text-left text-gray-300 mb-2";
+					battleLogOverlay.appendChild(actionTextElement);
 				}
-				// If there was critical hit text from previous turn, remove it
-
-				let effectivenessText = "";
-				if (act.efficacite > 1) {
-					effectivenessText = " It's super effective!";
-				} else if (act.efficacite < 1) {
-					effectivenessText = " It's not very effective...";
+				actionTextElement.textContent = actionText;
+				const critiqueTextElement = document.getElementById("critiqueText");
+				if (critiqueTextElement) {
+					critiqueTextElement.textContent = "";
+					critiqueTextElement.remove();
 				}
-
-				const damageText = `Deals ${Math.round(
-					act.degats
-				)} damage!${effectivenessText}`;
-				// Update damage text in the UI
-				let damageTextElement = document.getElementById("damageText");
-				if (!damageTextElement) {
-					damageTextElement = document.createElement("div");
-					damageTextElement.id = "damageText";
-					damageTextElement.className = "text-md text-left text-gray-200 mb-2";
-					battleLogOverlay.appendChild(damageTextElement);
-				}
-				damageTextElement.textContent = damageText;
-				if (act.critique) {
-					let critiqueTextElement = document.getElementById("critiqueText");
-					if (!critiqueTextElement) {
-						critiqueTextElement = document.createElement("div");
-						critiqueTextElement.id = "critiqueText";
-						critiqueTextElement.className =
-							"text-md text-left text-yellow-500 mb-2";
-						battleLogOverlay.appendChild(critiqueTextElement);
+				if (act.touche) {
+					// If there was a miss text from previous turn, remove it
+					const missTextElement = document.getElementById("missText");
+					if (missTextElement) {
+						missTextElement.textContent = "";
+						missTextElement.remove();
 					}
-					critiqueTextElement.textContent = "Critical hit!";
-				}
-			} else {
-				// Hide damage text if attack missed
-				const damageTextElement = document.getElementById("damageText");
-				if (damageTextElement) {
-					damageTextElement.textContent = "";
-					damageTextElement.remove();
-				}
+					// If there was critical hit text from previous turn, remove it
 
-				const missText = "The attack missed!";
-				// Update miss text in the UI
-				let missTextElement = document.getElementById("missText");
-				if (!missTextElement) {
-					missTextElement = document.createElement("div");
-					missTextElement.id = "missText";
-					missTextElement.className = "text-md text-left text-red-500 mb-2";
-					battleLogOverlay.appendChild(missTextElement);
-				}
-				missTextElement.textContent = missText;
-			}
-
-			if (act.capaciteSpeciale) {
-				// Update special attack text in the UI
-				let specialAttackTextElement =
-					document.getElementById("specialAttackText");
-				if (!specialAttackTextElement) {
-					specialAttackTextElement = document.createElement("div");
-					specialAttackTextElement.id = "specialAttackText";
-					specialAttackTextElement.className =
-						"text-md text-left text-yellow-400 mb-2";
-					battleLogOverlay.appendChild(specialAttackTextElement);
-				}
-				specialAttackTextElement.textContent = `${act.attaquant} used its special ability!`;
-			}
-
-			if (fin) {
-				const end = fin.fin;
-				setTimeout(() => {
-					const winText = `${end.vainqueur} wins with ${Math.round(
-						end.pvRestants
-					)} HP remaining!`;
-
-					// Create centered win text container
-					let winTextElement = document.getElementById("winText");
-					if (!winTextElement) {
-						winTextElement = document.createElement("div");
-						winTextElement.id = "winText";
-						winTextElement.style.position = "absolute";
-						winTextElement.style.top = "30%";
-						winTextElement.style.left = "50%";
-						winTextElement.style.transform = "translate(-50%, -50%)";
-						winTextElement.style.zIndex = "1000";
-						winTextElement.className =
-							"text-3xl text-green-400 font-bold text-center bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg";
-						document.body.appendChild(winTextElement);
+					let effectivenessText = "";
+					if (act.efficacite > 1) {
+						effectivenessText = " It's super effective!";
+					} else if (act.efficacite < 1) {
+						effectivenessText = " It's not very effective...";
 					}
-					winTextElement.textContent = winText;
 
-					// Set faintedPokemonId based on which Pokemon has 0 HP
-					if (targetHealth1 <= 0) {
-						faintedPokemonId = `pokemon${initialStats.pokemon1.id}`;
-					} else if (targetHealth2 <= 0) {
-						faintedPokemonId = `pokemon${initialStats.pokemon2.id}`;
+					const damageText = `Deals ${Math.round(
+						act.degats
+					)} damage!${effectivenessText}`;
+					// Update damage text in the UI
+					let damageTextElement = document.getElementById("damageText");
+					if (!damageTextElement) {
+						damageTextElement = document.createElement("div");
+						damageTextElement.id = "damageText";
+						damageTextElement.className =
+							"text-md text-left text-gray-200 mb-2";
+						battleLogOverlay.appendChild(damageTextElement);
 					}
-					// Create the 'Heal and Restart' button
-					createHealButton(faintedPokemonId);
-				}, 1000);
-			}
-		});
+					damageTextElement.textContent = damageText;
+					if (act.critique) {
+						let critiqueTextElement = document.getElementById("critiqueText");
+						if (!critiqueTextElement) {
+							critiqueTextElement = document.createElement("div");
+							critiqueTextElement.id = "critiqueText";
+							critiqueTextElement.className =
+								"text-md text-left text-yellow-500 mb-2";
+							battleLogOverlay.appendChild(critiqueTextElement);
+						}
+						critiqueTextElement.textContent = "Critical hit!";
+					}
+				} else {
+					// Hide damage text if attack missed
+					const damageTextElement = document.getElementById("damageText");
+					if (damageTextElement) {
+						damageTextElement.textContent = "";
+						damageTextElement.remove();
+					}
+
+					const missText = "The attack missed!";
+					// Update miss text in the UI
+					let missTextElement = document.getElementById("missText");
+					if (!missTextElement) {
+						missTextElement = document.createElement("div");
+						missTextElement.id = "missText";
+						missTextElement.className = "text-md text-left text-red-500 mb-2";
+						battleLogOverlay.appendChild(missTextElement);
+					}
+					missTextElement.textContent = missText;
+				}
+
+				if (act.capaciteSpeciale) {
+					// Update special attack text in the UI
+					let specialAttackTextElement =
+						document.getElementById("specialAttackText");
+					if (!specialAttackTextElement) {
+						specialAttackTextElement = document.createElement("div");
+						specialAttackTextElement.id = "specialAttackText";
+						specialAttackTextElement.className =
+							"text-md text-left text-yellow-400 mb-2";
+						battleLogOverlay.appendChild(specialAttackTextElement);
+					}
+					specialAttackTextElement.textContent = `${act.attaquant} used its special ability!`;
+				}
+
+				if (fin) {
+					const end = fin.fin;
+					setTimeout(() => {
+						const winText = `${end.vainqueur} wins with ${Math.round(
+							end.pvRestants
+						)} HP remaining!`;
+
+						// Create centered win text container
+						let winTextElement = document.getElementById("winText");
+						if (!winTextElement) {
+							winTextElement = document.createElement("div");
+							winTextElement.id = "winText";
+							winTextElement.style.position = "absolute";
+							winTextElement.style.top = "30%";
+							winTextElement.style.left = "50%";
+							winTextElement.style.transform = "translate(-50%, -50%)";
+							winTextElement.style.zIndex = "1000";
+							winTextElement.className =
+								"text-3xl text-green-400 font-bold text-center bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg";
+							document.body.appendChild(winTextElement);
+						}
+						winTextElement.textContent = winText;
+
+						// Set faintedPokemonId based on which Pokemon has 0 HP
+						if (targetHealth1 <= 0) {
+							faintedPokemonId = `pokemon${initialStats.pokemon1.id}`;
+						} else if (targetHealth2 <= 0) {
+							faintedPokemonId = `pokemon${initialStats.pokemon2.id}`;
+						}
+						// Create the 'Heal and Restart' button
+						createHealButton(faintedPokemonId);
+					}, 1000);
+				}
+			});
 	}
 
 	if (fin) {
