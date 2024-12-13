@@ -143,117 +143,185 @@ function animateHealth() {
 	return needsAnimation;
 }
 
+// Function to animate attack movement
+function animateAttack(pokemonId, missed) {
+	return new Promise((resolve) => {
+		const targetId = pokemonId.endsWith("1")
+			? `pokemon${initialStats.pokemon2.id}`
+			: `pokemon${initialStats.pokemon1.id}`;
+		const direction = pokemonId.endsWith("1")
+			? movementOffset
+			: -movementOffset;
+
+		const jumpHeight = pokemonId.endsWith("1") ? 10 : 3;
+		let step = 0;
+		const steps = 15;
+		const flashCount = 2;
+		const flashSteps = 3; // Steps per flash
+		const flashGap = 4; // Steps between flashes
+		const flashStart =
+			Math.floor(steps / 2) -
+			Math.floor((flashCount * (flashSteps + flashGap)) / 2);
+
+		const interval = setInterval(() => {
+			if (step < steps) {
+				pokemonPositions[pokemonId].x += direction / steps;
+				pokemonPositions[pokemonId].y -=
+					Math.sin((step / steps) * Math.PI) * jumpHeight;
+
+				// Only show red tint if attack didn't miss
+				if (!missed) {
+					// Calculate if we should show red tint for current step
+					const relativeStep = step - flashStart;
+					const flashCycle = flashSteps + flashGap;
+					const inFlashRange =
+						relativeStep >= 0 && relativeStep < flashCount * flashCycle;
+					const isFlashStep =
+						inFlashRange && relativeStep % flashCycle < flashSteps;
+
+					if (isFlashStep) {
+						draw(targetId, "rgba(255, 0, 0, 0.5)");
+					} else {
+						draw();
+					}
+				} else {
+					draw();
+				}
+
+				step++;
+			} else {
+				clearInterval(interval);
+				let returnStep = 0;
+				const returnInterval = setInterval(() => {
+					if (returnStep < steps) {
+						pokemonPositions[pokemonId].x -= direction / steps;
+						pokemonPositions[pokemonId].y +=
+							Math.sin(((steps - returnStep) / steps) * Math.PI) * jumpHeight;
+						returnStep++;
+						draw();
+					} else {
+						clearInterval(returnInterval);
+						pokemonPositions[pokemonId].x =
+							pokemonPositions[pokemonId].originalX;
+						pokemonPositions[pokemonId].y =
+							pokemonPositions[pokemonId].originalY;
+						draw();
+						resolve();
+					}
+				}, 20);
+			}
+		}, 20);
+	});
+}
+
+// Function to animate fainting Pokémon
+function animateFaint(pokemonId) {
+	isAnimatingFaint = true;
+	let step = 0;
+	const steps = 50;
+
+	const interval = setInterval(() => {
+		if (step < steps) {
+			pokemonPositions[pokemonId].y += 2;
+			pokemonOpacities[pokemonId] -= 1 / steps;
+			step++;
+			draw();
+		} else {
+			clearInterval(interval);
+			pokemonOpacities[pokemonId] = 0;
+			isAnimatingFaint = false;
+		}
+	}, 20);
+}
+
 let animationFrameId = null;
 
-function draw() {
+function draw(tintPokemonId = null, tintColor = null) {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	// Get opacities for each Pokémon
 	const opacity1 = pokemonOpacities[`pokemon${initialStats.pokemon1.id}`];
 	const opacity2 = pokemonOpacities[`pokemon${initialStats.pokemon2.id}`];
 
-	// Only draw first Pokémon if not fainted
+	// Helper function to draw pokemon with tint
+	function drawPokemon(pokemonId, position, opacity) {
+		ctx.globalAlpha = opacity;
+		console.log(tintPokemonId, tintColor);
+		if (tintPokemonId === pokemonId && tintColor) {
+			// Create temporary canvas for tinting
+			const tempCanvas = document.createElement("canvas");
+			const tempCtx = tempCanvas.getContext("2d");
+			tempCanvas.width = 200;
+			tempCanvas.height = 200;
+
+			// Draw pokemon
+			tempCtx.drawImage(pokemonImages[pokemonId], 0, 0, 200, 200);
+
+			// Apply tint
+			tempCtx.fillStyle = tintColor;
+			tempCtx.globalCompositeOperation = "source-atop";
+			tempCtx.fillRect(0, 0, 200, 200);
+
+			// Draw to main canvas
+			ctx.drawImage(tempCanvas, position.x, position.y, 200, 200);
+		} else {
+			ctx.drawImage(pokemonImages[pokemonId], position.x, position.y, 200, 200);
+		}
+
+		// Draw health bar
+		ctx.strokeStyle = "black";
+		ctx.lineWidth = 2;
+		ctx.strokeRect(position.x, position.y - 30, 200, 20);
+		drawHealthBar(
+			position.x,
+			position.y - 30,
+			pokemonId.endsWith("1") ? currentHealth1 : currentHealth2,
+			pokemonId.endsWith("1")
+				? initialStats.pokemon1.pvMax
+				: initialStats.pokemon2.pvMax
+		);
+
+		// Draw name and HP
+		ctx.font = "20px Arial";
+		ctx.lineWidth = 3;
+		ctx.strokeStyle = "white";
+		ctx.fillStyle = "black";
+		ctx.textBaseline = "top";
+		const text = pokemonId.endsWith("1")
+			? `${initialStats.pokemon1.nom} HP: ${Math.round(currentHealth1)}/${
+					initialStats.pokemon1.pvMax
+			  }`
+			: `${initialStats.pokemon2.nom} HP: ${Math.round(currentHealth2)}/${
+					initialStats.pokemon2.pvMax
+			  }`;
+		ctx.strokeText(text, position.x, position.y - 50);
+		ctx.fillText(text, position.x, position.y - 50);
+	}
+
+	// Draw Pokemon 1 if not fainted
 	if (opacity1 > 0) {
-		ctx.globalAlpha = opacity1;
-		ctx.drawImage(
-			pokemonImages[`pokemon${initialStats.pokemon1.id}`],
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].y,
-			200,
-			200
-		);
-
-		// Draw health bar and text with same opacity
-		ctx.strokeStyle = "black";
-		ctx.lineWidth = 2;
-		ctx.strokeRect(
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].y - 30,
-			200,
-			20
-		);
-		drawHealthBar(
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].y - 30,
-			currentHealth1,
-			initialStats.pokemon1.pvMax
-		);
-
-		// Draw name and HP
-		ctx.font = "20px Arial";
-		ctx.lineWidth = 3;
-		ctx.strokeStyle = "white";
-		ctx.fillStyle = "black";
-		ctx.textBaseline = "top";
-		const text1 = `${initialStats.pokemon1.nom} HP: ${Math.round(
-			currentHealth1
-		)}/${initialStats.pokemon1.pvMax}`;
-		ctx.strokeText(
-			text1,
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].y - 50
-		);
-		ctx.fillText(
-			text1,
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon1.id}`].y - 50
+		drawPokemon(
+			`pokemon${initialStats.pokemon1.id}`,
+			pokemonPositions[`pokemon${initialStats.pokemon1.id}`],
+			opacity1
 		);
 	}
 
-	// Only draw second Pokémon if not fainted
+	// Draw Pokemon 2 if not fainted
 	if (opacity2 > 0) {
-		ctx.globalAlpha = opacity2;
-		ctx.drawImage(
-			pokemonImages[`pokemon${initialStats.pokemon2.id}`],
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].y,
-			200,
-			200
-		);
-
-		// Draw health bar and text with same opacity
-		ctx.strokeStyle = "black";
-		ctx.lineWidth = 2;
-		ctx.strokeRect(
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].y - 30,
-			200,
-			20
-		);
-		drawHealthBar(
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].y - 30,
-			currentHealth2,
-			initialStats.pokemon2.pvMax
-		);
-
-		// Draw name and HP
-		ctx.font = "20px Arial";
-		ctx.lineWidth = 3;
-		ctx.strokeStyle = "white";
-		ctx.fillStyle = "black";
-		ctx.textBaseline = "top";
-		const text2 = `${initialStats.pokemon2.nom} HP: ${Math.round(
-			currentHealth2
-		)}/${initialStats.pokemon2.pvMax}`;
-		ctx.strokeText(
-			text2,
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].y - 50
-		);
-		ctx.fillText(
-			text2,
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].x,
-			pokemonPositions[`pokemon${initialStats.pokemon2.id}`].y - 50
+		drawPokemon(
+			`pokemon${initialStats.pokemon2.id}`,
+			pokemonPositions[`pokemon${initialStats.pokemon2.id}`],
+			opacity2
 		);
 	}
 
-	ctx.globalAlpha = 1; // Reset global alpha
+	ctx.globalAlpha = 1;
 
-	// Continue animating if necessary
 	if (animateHealth() || isAnimatingFaint) {
-		animationFrameId = requestAnimationFrame(draw); // Modify this line
+		animationFrameId = requestAnimationFrame(() =>
+			draw(tintPokemonId, tintColor)
+		);
 	} else {
-		animationFrameId = null; // Add this line
+		animationFrameId = null;
 	}
 }
 
@@ -389,7 +457,7 @@ function updateActionText(action, fin) {
 		const act = action.action;
 		// Use the id to determine attacker
 		const attackerId = act.id; // Retrieve id from action
-		animateAttack(`pokemon${attackerId}`).then(() => {
+		animateAttack(`pokemon${attackerId}`, !act.touche).then(() => {
 			// Use id to animate
 			const actionText = `${act.attaquant} uses ${act.attackUsed}!`;
 			// Update action text in the UI
@@ -537,61 +605,6 @@ function updateActionText(action, fin) {
 		}
 		winTextElement.textContent = winText;
 	}
-}
-
-// Function to animate attack movement
-function animateAttack(pokemonId) {
-	return new Promise((resolve) => {
-		const direction =
-			pokemonPositions[pokemonId].x === pokemonPositions[pokemonId].originalX
-				? pokemonId.endsWith("1")
-					? movementOffset
-					: -movementOffset
-				: 0;
-		let step = 0;
-		const steps = 10;
-		const interval = setInterval(() => {
-			if (step < steps) {
-				pokemonPositions[pokemonId].x += direction / steps;
-				step++;
-				draw();
-			} else {
-				clearInterval(interval);
-				// Return to original position
-				let returnStep = 0;
-				const returnInterval = setInterval(() => {
-					if (returnStep < steps) {
-						pokemonPositions[pokemonId].x -= direction / steps;
-						returnStep++;
-						draw();
-					} else {
-						clearInterval(returnInterval);
-						resolve();
-					}
-				}, 20);
-			}
-		}, 20);
-	});
-}
-
-// Function to animate fainting Pokémon
-function animateFaint(pokemonId) {
-	isAnimatingFaint = true;
-	let step = 0;
-	const steps = 50;
-
-	const interval = setInterval(() => {
-		if (step < steps) {
-			pokemonPositions[pokemonId].y += 2; // Move downwards
-			pokemonOpacities[pokemonId] -= 1 / steps; // Decrease opacity
-			step++;
-			draw();
-		} else {
-			clearInterval(interval);
-			pokemonOpacities[pokemonId] = 0;
-			isAnimatingFaint = false;
-		}
-	}, 20);
 }
 
 // Update the animateTurn function

@@ -3,8 +3,12 @@ class Router {
 
     public function dispatch($url) {
         $url = urldecode(parse_url($url, PHP_URL_PATH));
+        $position = strpos($url, 'PokemonProject');
+        if ($position !== false) {
+            $url = substr($url, $position + strlen('PokemonProject') + 1);
+        }
         $url = trim($url, '/');
-
+        
         if (empty($url)) {
             $controllerName = 'PokemonController';
             $methodName = 'index';
@@ -31,15 +35,15 @@ class Router {
             if (method_exists($controller, $methodName)) {
                 call_user_func_array([$controller, $methodName], $params);
             } else {
-                $this->error404();
+                $this->error404($controller, $methodName);
             }
         } else {
-            $this->error404();
+            $this->error404($controllerFile, null);
         }
     }
 
     // Display 404 error page
-    private function error404() {
+    private function error404(?string $controller, ?string $method) {
         header("HTTP/1.0 404 Not Found");
         echo '<!DOCTYPE html>
         <html>
@@ -78,6 +82,9 @@ class Router {
             <div class="error-container">
                 <div class="error-title">404</div>
                 <div class="error-message">Page Not Found</div>
+                <div class="error-message">The requested URL was not found on this server.</div>
+                <div class="error-message">Controller: ' . $controller . '</div>
+                <div class="error-message">Method: ' . $method . '</div>
                 <a href="/" class="home-link">Return to Homepage</a>
             </div>
         </body>
